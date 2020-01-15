@@ -2,14 +2,15 @@
 
 ![Screenshot](/images/screenshot.png)
 
-(*FIXME: In one or two paragraphs, describe what the extension does and why one would download it. *)
+Handling parsed Amazon SES bounce notifications, analogue to https://github.com/mecachisenros/civicrm-ses. 
 
+This is best used with CiviProxy webhook2api, or something similar 
 The extension is licensed under [AGPL-3.0](LICENSE.txt).
 
 ## Requirements
 
-* PHP v5.4+
-* CiviCRM (*FIXME: Version number*)
+* PHP v7.1+
+* CiviCRM 5.x
 
 ## Installation (Web UI)
 
