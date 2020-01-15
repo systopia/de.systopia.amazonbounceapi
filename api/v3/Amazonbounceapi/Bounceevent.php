@@ -21,6 +21,9 @@ function _civicrm_api3_amazonbounceapi_Bounceevent_spec(&$spec) {
   $spec['message_id']['api.required'] = 1;
   $spec['topic_arn']['api.required'] = 1;
   $spec['amazon_type']['api.required'] = 1;
+  $spec['timestamp']['api.required'] = 1;
+  $spec['signature']['api.required'] = 1;
+  $spec['signature_cert_url']['api.required'] = 1;
 }
 
 /**
