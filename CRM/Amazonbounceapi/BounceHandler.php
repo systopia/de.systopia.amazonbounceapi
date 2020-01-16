@@ -131,6 +131,7 @@ class CRM_Amazonbounceapi_BounceHandler {
       $this->dump_message_content_to_log();
       return FALSE;
     }
+
   }
 
   /**
@@ -142,8 +143,12 @@ class CRM_Amazonbounceapi_BounceHandler {
   }
 
   private function dump_message_content_to_log() {
-    // TODO: concatenate member vars
-    $message .+ "";
+    $message .+ " | " . $this->notification_type . " | " . $this->bounce_type . " | "
+      . $this->bounce_sub_type . " | " . $this->bounce_recipient_address . " | "
+      . $this->bounce_diagnostic_code . " | " . $this->bounce_status . " | " . json_encode($this->headers_raw) . " | "
+      . json_encode($this->message_raw) . " | " . $this->message_id . " | " . $this->topic_arn . " | "
+      . $this->amazon_type . " | " . $this->timestamp . " | " . $this->signature . " | " . $this->signature_cert_url;
+    CRM_Core_Error::debug_log_message("AmazonBounceApi (Message_Dump) -> {$message}");
   }
 
 
