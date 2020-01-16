@@ -34,11 +34,15 @@ function _civicrm_api3_amazonbounceapi_Bounceevent_spec(&$spec) {
  * @throws API_Exception
  */
 function civicrm_api3_amazonbounceapi_Bounceevent($params) {
-  if (TRUE) {
+
+  try {
     $bounce_handler = new CRM_Amazonbounceapi_BounceHandler($params);
-    return civicrm_api3_create_success([], $params, 'Amazonbounceapi', 'bounceevent');
-  }
-  else {
-    throw new API_Exception(/*errorMessage*/ 'Everyone knows that the magicword is "sesame"', /*errorCode*/ 1234);
+    if ($bounce_handler->run()) {
+      return civicrm_api3_create_success([], $params, 'Amazonbounceapi', 'bounceevent');
+    } else {
+      throw new API_Exception($bounce_handler->get_fail_reason());
+    }
+  } catch (Exception $e) {
+    throw new API_Exception($e->getMessage());
   }
 }

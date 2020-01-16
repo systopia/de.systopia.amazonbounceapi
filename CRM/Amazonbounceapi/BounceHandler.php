@@ -114,6 +114,11 @@ class CRM_Amazonbounceapi_BounceHandler {
   private $civi_bounce_types;
 
   /**
+   * @var
+   */
+  private $fail_reason = '';
+
+  /**
    * CRM_Amazonbounceapi_BounceHandler constructor.
    *
    * @param $notification_type
@@ -143,12 +148,14 @@ class CRM_Amazonbounceapi_BounceHandler {
    */
   public function run() {
     if ( ! $this->verify_signature() ) {
-      $this->log('Amazon SES Signature Verification failed. Bounce was NOT parsed.');
+      $this->fail_reason = 'Amazon SES Signature Verification failed. Bounce was NOT parsed.';
+      $this->log($this->fail_reason);
       $this->dump_message_content_to_log();
       return FALSE;
     }
     if ($this->amazon_type != 'Notification') {
-      $this->log("SNS Webhook isn't a notification and wont be parsed here.");
+      $this->fail_reason = "SNS Webhook isn't a notification and wont be parsed here.";
+      $this->log($this->fail_reason);
       return FALSE;
     }
     if ( in_array( $this->notification_type, ['Bounce'] ) ) {
@@ -158,12 +165,21 @@ class CRM_Amazonbounceapi_BounceHandler {
         'event_queue_id' => $event_queue_id,
         'hash' => $hash,
       ] );
+
       return TRUE;
     } else {
-      $this->log("Error occured parsing the bounce message.");
+      $this->fail_reason = "Error occured parsing the bounce message.";
+      $this->log($this->fail_reason);
       $this->dump_message_content_to_log();
       return FALSE;
     }
+  }
+
+  /**
+   * @return mixed
+   */
+  public function get_fail_reason() {
+    return $this->fail_reason;
   }
 
   /**
