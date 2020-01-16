@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <extension key="de.systopia.amazonbounceapi" type="module">
   <file>amazonbounceapi</file>
-  <name>FIXME</name>
+  <name>Amazon SES Bounce API</name>
   <description>Handling parsed Amazon SES bounce notifications, analogue to https://github.com/mecachisenros/civicrm-ses. This is best used with CiviProxy webhook2api, or something similar </description>
   <license>AGPL-3.0</license>
   <maintainer>
