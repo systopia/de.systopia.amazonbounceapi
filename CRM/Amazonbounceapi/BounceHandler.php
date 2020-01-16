@@ -19,6 +19,25 @@ use CRM_Mailingtools_ExtensionUtil as E;
 class CRM_Amazonbounceapi_BounceHandler {
 
   /**
+   * SES Permanent bounce types.
+   *
+   * Hard bounces
+   * @access private
+   * @var array $ses_permanent_bounce_types
+   */
+  private $ses_permanent_bounce_types = [ 'Undetermined', 'General', 'NoEmail', 'Suppressed' ];
+
+  /**
+   * SES Transient bounce types.
+   *
+   * Soft bounces
+   * @access private
+   * @var array $ses_transient_bounce_types
+   */
+  private $ses_transient_bounce_types = [ 'General', 'MailboxFull', 'MessageTooLarge', 'ContentRejected', 'AttachmentRejected' ];
+
+
+  /**
    * @var SNS Notifcation Type
    *      (should be 'Bounce'. Other events wont be parsed in this API)
    */
@@ -35,19 +54,9 @@ class CRM_Amazonbounceapi_BounceHandler {
   private $bounce_sub_type;
 
   /**
-   * @var X-CiviMail-Bounce header
-   */
-  private $bounce_recipient_address;
-
-  /**
    * @var SMTP Bounce Message
    */
-  private $bounce_diagnostic_code;
-
-  /**
-   * @var SMTP error code
-   */
-  private $bounce_status;
+  private $bounced_recipients;
 
   /**
    * @var Raw Email header from SNS. php Object
@@ -90,48 +99,71 @@ class CRM_Amazonbounceapi_BounceHandler {
   private $signature;
 
   /**
+   * @var string
+   */
+  private $localpart;
+
+  /**
+   * @var mixed
+   */
+  private $verp_separator;
+
+  /**
+   * @var array
+   */
+  private $civi_bounce_types;
+
+  /**
    * CRM_Amazonbounceapi_BounceHandler constructor.
    *
    * @param $notification_type
    * @param $bounce_type
    * @param $bounce_sub_type
-   * @param $bounce_recipient_address
-   * @param $bounce_diagnostic_code
-   * @param $bounce_status
+   * @param $bounced_recipients
    * @param $headers_raw
    * @param $message_raw
    * @param $message_id
    * @param $topic_arn
    * @param $amazon_type
+   * @param $timestamp
+   * @param $signature
+   * @param $signature_cert_url
    */
-  public function __construct($notification_type, $bounce_type, $bounce_sub_type,
-                              $bounce_recipient_address, $bounce_diagnostic_code,
-                              $bounce_status, $headers_raw, $message_raw,
-                              $message_id, $topic_arn, $amazon_type, $timestamp,
-                              $signature, $signature_cert_url) {
-    $this->notification_type = $notification_type;
-    $this->bounce_type = $bounce_type;
-    $this->bounce_sub_type = $bounce_sub_type;
-    $this->bounce_recipient_address = $bounce_recipient_address;
-    $this->bounce_diagnostic_code = $bounce_diagnostic_code;
-    $this->bounce_status = $bounce_status;
-    $this->headers_raw = json_decode($headers_raw);
-    $this->message_raw = json_decode($message_raw);
-    $this->message_id = $message_id;
-    $this->topic_arn = $topic_arn;
-    $this->amazon_type = $amazon_type;
-    $this->timestamp = $timestamp;
-    $this->signature = $signature;
-    $this->signature_cert_url = $signature_cert_url;
+  public function __construct($params) {
+
+    $this->parse_params($params);
+    $this->verp_separator = Civi::settings()->get( 'verpSeparator' );
+    $this->localpart = CRM_Core_BAO_MailSettings::defaultLocalpart();
+    $this->civi_bounce_types = $this->get_civi_bounce_types();
   }
 
+  /**
+   * Runner
+   * @return bool
+   */
   public function run() {
     if ( ! $this->verify_signature() ) {
       $this->log('Amazon SES Signature Verification failed. Bounce was NOT parsed.');
       $this->dump_message_content_to_log();
       return FALSE;
     }
-
+    if ($this->amazon_type != 'Notification') {
+      $this->log("SNS Webhook isn't a notification and wont be parsed here.");
+      return FALSE;
+    }
+    if ( in_array( $this->notification_type, ['Bounce'] ) ) {
+      list( $job_id, $event_queue_id, $hash ) = $this->get_verp_items( $this->get_header_value( 'X-CiviMail-Bounce' ) );
+      $bounce_params = $this->set_bounce_type_params( [
+        'job_id' => $job_id,
+        'event_queue_id' => $event_queue_id,
+        'hash' => $hash,
+      ] );
+      return TRUE;
+    } else {
+      $this->log("Error occured parsing the bounce message.");
+      $this->dump_message_content_to_log();
+      return FALSE;
+    }
   }
 
   /**
@@ -143,9 +175,10 @@ class CRM_Amazonbounceapi_BounceHandler {
   }
 
   private function dump_message_content_to_log() {
-    $message .+ " | " . $this->notification_type . " | " . $this->bounce_type . " | "
+    $message ="";
+    $message .= " | " . $this->notification_type . " | " . $this->bounce_type . " | "
       . $this->bounce_sub_type . " | " . $this->bounce_recipient_address . " | "
-      . $this->bounce_diagnostic_code . " | " . $this->bounce_status . " | " . json_encode($this->headers_raw) . " | "
+      . jsonencode($this->bounced_recipients) .  json_encode($this->headers_raw) . " | "
       . json_encode($this->message_raw) . " | " . $this->message_id . " | " . $this->topic_arn . " | "
       . $this->amazon_type . " | " . $this->timestamp . " | " . $this->signature . " | " . $this->signature_cert_url;
     CRM_Core_Error::debug_log_message("AmazonBounceApi (Message_Dump) -> {$message}");
@@ -161,6 +194,7 @@ class CRM_Amazonbounceapi_BounceHandler {
    * @return bool $signed true if succesful
    */
   private function verify_signature() {
+    $message ="";
     // static signature, since we only need to parse bounce notifications
     $message .= "Message\n{$this->message_raw}\n";
     $message .= "MessageId\n{$this->message_id}\n";
@@ -194,6 +228,114 @@ class CRM_Amazonbounceapi_BounceHandler {
       if( $header->name == $name )
         return $header->value;
     }
+  }
+
+  /**
+   * Get verp items.
+   *
+   * @param string $header_value The X-CiviMail-Bounce header
+   * @return array $verp_items The verp items [ $job_id, $queue_id, $hash ]
+   */
+  private function get_verp_items( $header_value ) {
+    $verp_items = substr( substr( $header_value, 0, strpos( $header_value, '@' ) ), strlen( $this->localpart ) + 2 );
+    return explode( $this->verp_separator, $verp_items );
+  }
+
+  /**
+   * Get CiviCRM bounce types.
+   *
+   * @return $array $civi_bounce_types
+   */
+  private function get_civi_bounce_types() {
+    if ( ! empty( $this->civi_bounce_types ) ) return $this->civi_bounce_types;
+
+    $query = 'SELECT id,name FROM civicrm_mailing_bounce_type';
+    $dao = CRM_Core_DAO::executeQuery( $query );
+
+    $civi_bounce_types = [];
+    while ( $dao->fetch() ) {
+      $civi_bounce_types[$dao->id] = $dao->name;
+    }
+
+    return $civi_bounce_types;
+  }
+
+
+  /**
+   * Set bounce type params.
+   *
+   * @param array $bounce_params The params array
+   * @return array $bounce_params Teh params array
+   */
+  protected function set_bounce_type_params( $bounce_params ) {
+    // hard bounces
+    if ( $this->bounce_type == 'Permanent' && in_array( $this->bounce_sub_type, $this->ses_permanent_bounce_types ) )
+      switch ( $this->bounce_sub_type ) {
+        case 'Undetermined':
+          $bounce_params = $this->map_bounce_types( $bounce_params, 'Syntax' );
+          break;
+        case 'General':
+        case 'NoEmail':
+        case 'Suppressed':
+          $bounce_params = $this->map_bounce_types( $bounce_params, 'Invalid' );
+          break;
+      }
+    // soft bounces
+    if ( $this->bounce_type == 'Transient' && in_array( $this->bounce_sub_type, $this->ses_transient_bounce_types ) )
+      switch ( $this->bounce_sub_type ) {
+        case 'General':
+          $bounce_params = $this->map_bounce_types( $bounce_params, 'Syntax' ); // hold_threshold is 3
+          break;
+        case 'MessageTooLarge':
+        case 'MailboxFull':
+          $bounce_params = $this->map_bounce_types( $bounce_params, 'Quota' );
+          break;
+        case 'ContentRejected':
+        case 'AttachmentRejected':
+          $bounce_params = $this->map_bounce_types( $bounce_params, 'Spam' );
+          break;
+      }
+
+    return $bounce_params;
+  }
+
+
+  /**
+   * Map Amazon bounce types to Civi bounce types.
+   *
+   * @param  array $bounce_params The params array
+   * @param  string $type_to_map_to Civi bounce type to map to
+   * @return array $bounce_params The params array
+   */
+  protected function map_bounce_types( $bounce_params, $type_to_map_to ) {
+
+    $bounce_params['bounce_type_id'] = array_search( $type_to_map_to, $this->civi_bounce_types );
+    // it should be one recipient
+    $recipient = count( $this->bounced_recipients ) == 1 ? reset( $this->bounced_recipients ) : false;
+    if ( $recipient )
+      $bounce_params['bounce_reason'] = $recipient->status . ' => ' . $recipient->diagnosticCode;
+
+    return $bounce_params;
+  }
+
+  /**
+   * Parsing API parameters. All Parameters are mandatory,
+   * thus checking/sanitation is not needed
+   * @param $params
+   */
+  private function parse_params($params) {
+    $this->notification_type = $params['notification_type'];
+    $this->bounce_type = $params['bounce_type'];
+    $this->bounce_sub_type = $params['bounce_sub_type'];
+    $this->bounced_recipients = json_decode($params['bounced_recipients']);
+    $this->headers_raw = json_decode($params['headers_raw']);
+    $this->message_raw = json_decode($params['message_raw']);
+    $this->message_id = $params['message_id'];
+    $this->topic_arn = $params['topic_arn'];
+    $this->amazon_type = $params['amazon_type'];
+    $this->timestamp = $params['timestamp'];
+    $this->signature = $params['signature'];
+    $this->signature_cert_url = $params['signature_cert_url'];
   }
 
 }

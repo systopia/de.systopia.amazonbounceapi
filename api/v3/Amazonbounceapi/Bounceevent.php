@@ -13,9 +13,7 @@ function _civicrm_api3_amazonbounceapi_Bounceevent_spec(&$spec) {
   $spec['notification_type']['api.required'] = 1;
   $spec['bounce_type']['api.required'] = 1;
   $spec['bounce_sub_type']['api.required'] = 1;
-  $spec['bounce_recipient_address']['api.required'] = 1;
-  $spec['bounce_diagnostic_code']['api.required'] = 1;
-  $spec['bounce_status']['api.required'] = 1;
+  $spec['bouncedRecipients']['api.required'] = 1;
   $spec['headers_raw']['api.required'] = 1;
   $spec['message_raw']['api.required'] = 1;
   $spec['message_id']['api.required'] = 1;
@@ -37,6 +35,7 @@ function _civicrm_api3_amazonbounceapi_Bounceevent_spec(&$spec) {
  */
 function civicrm_api3_amazonbounceapi_Bounceevent($params) {
   if (TRUE) {
+    $bounce_handler = new CRM_Amazonbounceapi_BounceHandler($params);
     return civicrm_api3_create_success([], $params, 'Amazonbounceapi', 'bounceevent');
   }
   else {
