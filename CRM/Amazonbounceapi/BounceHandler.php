@@ -151,7 +151,8 @@ class CRM_Amazonbounceapi_BounceHandler {
       $this->fail_reason = 'Amazon SES Signature Verification failed. Bounce was NOT parsed.';
       $this->log($this->fail_reason);
       $this->dump_message_content_to_log();
-      return FALSE;
+      // for now optional - check if this works first
+      //      return FALSE;
     }
     if ($this->amazon_type != 'Notification') {
       $this->fail_reason = "SNS Webhook isn't a notification and wont be parsed here.";
@@ -340,12 +341,12 @@ class CRM_Amazonbounceapi_BounceHandler {
    * @param $params
    */
   private function parse_params($params) {
-    $this->notification_type = $params['notification_type'];
-    $this->bounce_type = $params['bounce_type'];
-    $this->bounce_sub_type = $params['bounce_sub_type'];
-    $this->bounced_recipients = json_decode($params['bounced_recipients']);
-    $this->headers_raw = json_decode($params['headers_raw']);
     $this->message_raw = json_decode($params['message_raw']);
+    $this->headers_raw = $this->message_raw->mail->headers;
+    $this->headers_raw = $this->message_raw->notification_type;
+    $this->headers_raw = $this->message_raw->bounce->bounceType;
+    $this->headers_raw = $this->message_raw->bounce->bounceSubType;
+    $this->headers_raw = $this->message_raw->bounce->bouncedRecipients;
     $this->message_id = $params['message_id'];
     $this->topic_arn = $params['topic_arn'];
     $this->amazon_type = $params['amazon_type'];
