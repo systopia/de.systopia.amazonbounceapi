@@ -160,13 +160,22 @@ class CRM_Amazonbounceapi_BounceHandler {
       return FALSE;
     }
     if ( in_array( $this->notification_type, ['Bounce'] ) ) {
-      list( $job_id, $event_queue_id, $hash ) = $this->get_verp_items( $this->get_header_value( 'X-CiviMail-Bounce' ) );
+      $x_civi_mail_header = $this->get_header_value( 'X-CiviMail-Bounce' );
+      if (empty($x_civi_mail_header)) {
+        $this->fail_reason = "Failed to extract X-CiviMail-Bounce Header from Bounce message. Might be a transactional bounce, wont process.";
+        $this->log($this->fail_reason);
+        $this->dump_message_content_to_log();
+        return FALSE;
+      }
+      list( $job_id, $event_queue_id, $hash ) = $this->get_verp_items( $x_civi_mail_header );
       $bounce_params = $this->set_bounce_type_params( [
         'job_id' => $job_id,
         'event_queue_id' => $event_queue_id,
         'hash' => $hash,
       ] );
-
+      if ( CRM_Utils_Array::value( 'bounce_type_id' , $bounce_params ) ) {
+        $bounced = CRM_Mailing_Event_BAO_Bounce::create( $bounce_params );
+      }
       return TRUE;
     } else {
       $this->fail_reason = "Error occured parsing the bounce message.";
@@ -194,8 +203,8 @@ class CRM_Amazonbounceapi_BounceHandler {
   private function dump_message_content_to_log() {
     $message ="";
     $message .= " | " . $this->notification_type . " | " . $this->bounce_type . " | "
-      . $this->bounce_sub_type . " | " . $this->bounce_recipient_address . " | "
-      . jsonencode($this->bounced_recipients) .  json_encode($this->headers_raw) . " | "
+      . $this->bounce_sub_type . " | " . json_encode($this->bounced_recipients) . " | "
+      .  json_encode($this->headers_raw) . " | "
       . json_encode($this->message_raw) . " | " . $this->message_id . " | " . $this->topic_arn . " | "
       . $this->amazon_type . " | " . $this->timestamp . " | " . $this->signature . " | " . $this->signature_cert_url;
     CRM_Core_Error::debug_log_message("AmazonBounceApi (Message_Dump) -> {$message}");
@@ -211,9 +220,10 @@ class CRM_Amazonbounceapi_BounceHandler {
    * @return bool $signed true if succesful
    */
   private function verify_signature() {
-    $message ="";
+//    $message ="";
     // static signature, since we only need to parse bounce notifications
-    $message .= "Message\n{$this->message_raw}\n";
+    $message_as_json = json_encode($this->message_raw);
+    $message .= "Message\n{$message_as_json}\n";
     $message .= "MessageId\n{$this->message_id}\n";
     $message .= "Subject\n{$this->get_header_value('Subject')}\n";
     $message .= "Timestamp\n{$this->timestamp}\n";
@@ -343,10 +353,10 @@ class CRM_Amazonbounceapi_BounceHandler {
   private function parse_params($params) {
     $this->message_raw = json_decode($params['message_raw']);
     $this->headers_raw = $this->message_raw->mail->headers;
-    $this->headers_raw = $this->message_raw->notification_type;
-    $this->headers_raw = $this->message_raw->bounce->bounceType;
-    $this->headers_raw = $this->message_raw->bounce->bounceSubType;
-    $this->headers_raw = $this->message_raw->bounce->bouncedRecipients;
+    $this->notification_type = $this->message_raw->notificationType;
+    $this->bounce_type = $this->message_raw->bounce->bounceType;
+    $this->bounce_sub_type = $this->message_raw->bounce->bounceSubType;
+    $this->bounced_recipients = $this->message_raw->bounce->bouncedRecipients;
     $this->message_id = $params['message_id'];
     $this->topic_arn = $params['topic_arn'];
     $this->amazon_type = $params['amazon_type'];
