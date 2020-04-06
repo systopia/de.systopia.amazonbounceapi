@@ -10,11 +10,6 @@ use CRM_Amazonbounceapi_ExtensionUtil as E;
  * @see http://wiki.civicrm.org/confluence/display/CRMDOC/API+Architecture+Standards
  */
 function _civicrm_api3_amazonbounceapi_Bounceevent_spec(&$spec) {
-  $spec['notification_type']['api.required'] = 1;
-  $spec['bounce_type']['api.required'] = 1;
-  $spec['bounce_sub_type']['api.required'] = 1;
-  $spec['bouncedRecipients']['api.required'] = 1;
-  $spec['headers_raw']['api.required'] = 1;
   $spec['message_raw']['api.required'] = 1;
   $spec['message_id']['api.required'] = 1;
   $spec['topic_arn']['api.required'] = 1;
