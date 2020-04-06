@@ -150,7 +150,7 @@ class CRM_Amazonbounceapi_BounceHandler {
     if ( ! $this->verify_signature() ) {
       $this->fail_reason = 'Amazon SES Signature Verification failed. Bounce was NOT parsed.';
       $this->log($this->fail_reason);
-      $this->dump_message_content_to_log();
+//      $this->dump_message_content_to_log();
       // for now optional - check if this works first
       //      return FALSE;
     }
