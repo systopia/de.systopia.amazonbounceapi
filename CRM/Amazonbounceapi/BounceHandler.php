@@ -159,7 +159,33 @@ class CRM_Amazonbounceapi_BounceHandler {
       $this->log($this->fail_reason);
       return FALSE;
     }
-    if ( in_array( $this->notification_type, ['Bounce'] ) ) {
+    if (in_array( $this->notification_type, ['Bounce'] ) ) {
+      $x_400_content_identifier = $this->get_header_value( 'X400-Content-Identifier' );
+      if (!empty($x_400_content_identifier)) {
+        // TODO custom handling for de.systopia.donrec in here now!
+        try{
+          $pattern = '/DONREC#(?P<contact_id>[0-9]+)#(?P<contribution_id>[0-9]+)#(?P<timestamp>[0-9]+)#(?P<profile_id>[0-9]+)#/';
+          preg_match($pattern, $x_400_content_identifier, $matches);
+          print_r($matches);
+          $result = civicrm_api3('DonationReceipt', 'handlebounce', [
+            'contact_id' => $matches['contact_id'],
+            'contribution_id' => $matches['contribution_id'],
+            'timestamp' => $matches['timestamp'],
+            'profile_id' => $matches['profile_id'],
+          ]);
+          if($result['is_error'] == '1') {
+            $this->log("AmazonBounceApi handle Donation Receipt Bounce API-Error:  -> {$result['error_message']}");
+            return FALSE;
+          }
+          // We are done here. Bounce was parsed
+          return TRUE;
+        } catch (API_Exception $e) {
+          $this->log("AmazonBounceApi handle Donation Receipt Bounce. Error:  -> {$e->getMessage()}");
+          // do not return here - we might need to parse this bounce the "normal way".
+          // Unlikely this will happen, but maybe mass mailings can have that header set as wepp!
+        }
+      }
+      // start normal bounce handling
       $x_civi_mail_header = $this->get_header_value( 'X-CiviMail-Bounce' );
       if (empty($x_civi_mail_header)) {
         $this->fail_reason = "Failed to extract X-CiviMail-Bounce Header from Bounce message. Might be a transactional bounce, wont process.";
@@ -251,10 +277,12 @@ class CRM_Amazonbounceapi_BounceHandler {
    * @return string $value The header value
    */
   private function get_header_value( $name ) {
-    foreach ( $this->message_raw->mail->headers as $key => $header ) {
+    $tmp_header =  $this->message_raw->mail->headers;
+    foreach ( $tmp_header as $key => $header ) {
       if( $header->name == $name )
         return $header->value;
     }
+    return "DONREC#3#1#20220214150355#1#";
   }
 
   /**
@@ -351,8 +379,10 @@ class CRM_Amazonbounceapi_BounceHandler {
    * @param $params
    */
   private function parse_params($params) {
-    $this->message_raw = json_decode($params['message_raw']);
+//    $this->message_raw = json_decode($params['message_raw']);
+    $this->message_raw = (object) $params['message_raw']; // debug
     $this->headers_raw = $this->message_raw->mail->headers;
+    $tmp = $this->message_raw;
     $this->notification_type = $this->message_raw->notificationType;
     $this->bounce_type = $this->message_raw->bounce->bounceType;
     $this->bounce_sub_type = $this->message_raw->bounce->bounceSubType;
