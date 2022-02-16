@@ -166,7 +166,6 @@ class CRM_Amazonbounceapi_BounceHandler {
         try{
           $pattern = '/DONREC#(?P<contact_id>[0-9]+)#(?P<contribution_id>[0-9]+)#(?P<timestamp>[0-9]+)#(?P<profile_id>[0-9]+)#/';
           preg_match($pattern, $x_400_content_identifier, $matches);
-          print_r($matches);
           $result = civicrm_api3('DonationReceipt', 'handlebounce', [
             'contact_id' => $matches['contact_id'],
             'contribution_id' => $matches['contribution_id'],
@@ -182,7 +181,7 @@ class CRM_Amazonbounceapi_BounceHandler {
         } catch (API_Exception $e) {
           $this->log("AmazonBounceApi handle Donation Receipt Bounce. Error:  -> {$e->getMessage()}");
           // do not return here - we might need to parse this bounce the "normal way".
-          // Unlikely this will happen, but maybe mass mailings can have that header set as wepp!
+          // Unlikely this will happen, but maybe mass mailings can have that header set as well!
         }
       }
       // start normal bounce handling
@@ -277,12 +276,13 @@ class CRM_Amazonbounceapi_BounceHandler {
    * @return string $value The header value
    */
   private function get_header_value( $name ) {
-    $tmp_header =  $this->message_raw->mail->headers;
-    foreach ( $tmp_header as $key => $header ) {
-      if( $header->name == $name )
+    foreach ( $this->message_raw->mail->headers as $key => $header ) {
+        if( $header->name == $name )
         return $header->value;
     }
-    return "DONREC#3#1#20220214150355#1#";
+    return NULL;
+    // debug example value
+//    return "DONREC#3#1#20220214150355#1#";
   }
 
   /**
@@ -379,10 +379,8 @@ class CRM_Amazonbounceapi_BounceHandler {
    * @param $params
    */
   private function parse_params($params) {
-//    $this->message_raw = json_decode($params['message_raw']);
-    $this->message_raw = (object) $params['message_raw']; // debug
+    $this->message_raw = json_decode($params['message_raw']);
     $this->headers_raw = $this->message_raw->mail->headers;
-    $tmp = $this->message_raw;
     $this->notification_type = $this->message_raw->notificationType;
     $this->bounce_type = $this->message_raw->bounce->bounceType;
     $this->bounce_sub_type = $this->message_raw->bounce->bounceSubType;
