@@ -23,5 +23,9 @@
   <comments>Creates an API to handle amazon bounces. Best used with CiviProxy webhook2api module.</comments>
   <civix>
     <namespace>CRM/Amazonbounceapi</namespace>
+    <format>22.10.0</format>
   </civix>
+  <classloader>
+    <psr0 prefix="CRM_" path="."/>
+  </classloader>
 </extension>
