@@ -252,7 +252,7 @@ class CRM_Amazonbounceapi_BounceHandler {
 //    $message ="";
     // static signature, since we only need to parse bounce notifications
     $message_as_json = json_encode($this->message_raw);
-    $message .= "Message\n{$message_as_json}\n";
+    $message = "Message\n{$message_as_json}\n";
     $message .= "MessageId\n{$this->message_id}\n";
     $message .= "Subject\n{$this->get_header_value('Subject')}\n";
     $message .= "Timestamp\n{$this->timestamp}\n";
