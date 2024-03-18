@@ -199,6 +199,10 @@ class CRM_Amazonbounceapi_BounceHandler {
         'hash' => $hash,
       ] );
       if ( CRM_Utils_Array::value( 'bounce_type_id' , $bounce_params ) ) {
+        /*
+         * This class got renamed in core starting CiviCRM 5.57.
+         * We should keep its name, as it would otherwise break backwards compativility
+         */
         $bounced = CRM_Mailing_Event_BAO_Bounce::create( $bounce_params );
       }
       return TRUE;
