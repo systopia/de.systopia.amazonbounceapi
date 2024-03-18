@@ -178,7 +178,7 @@ class CRM_Amazonbounceapi_BounceHandler {
           }
           // We are done here. Bounce was parsed
           return TRUE;
-        } catch (API_Exception $e) {
+        } catch (CRM_Core_Exception $e) {
           $this->log("AmazonBounceApi handle Donation Receipt Bounce. Error:  -> {$e->getMessage()}");
           // do not return here - we might need to parse this bounce the "normal way".
           // Unlikely this will happen, but maybe mass mailings can have that header set as well!

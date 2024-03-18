@@ -26,7 +26,7 @@ function _civicrm_api3_amazonbounceapi_Bounceevent_spec(&$spec) {
  * @return array API result descriptor
  * @see civicrm_api3_create_success
  * @see civicrm_api3_create_error
- * @throws API_Exception
+ * @throws CRM_Core_Exception
  */
 function civicrm_api3_amazonbounceapi_Bounceevent($params) {
 
@@ -35,9 +35,9 @@ function civicrm_api3_amazonbounceapi_Bounceevent($params) {
     if ($bounce_handler->run()) {
       return civicrm_api3_create_success([], $params, 'Amazonbounceapi', 'bounceevent');
     } else {
-      throw new API_Exception($bounce_handler->get_fail_reason());
+      throw new CRM_Core_Exception($bounce_handler->get_fail_reason());
     }
   } catch (Exception $e) {
-    throw new API_Exception($e->getMessage());
+    throw new CRM_Core_Exception($e->getMessage());
   }
 }
