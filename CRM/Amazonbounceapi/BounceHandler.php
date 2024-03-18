@@ -222,7 +222,7 @@ class CRM_Amazonbounceapi_BounceHandler {
    * @param $message
    */
   private function log($message) {
-    CRM_Core_Error::debug_log_message("AmazonBounceApi (BounceHandler) -> {$message}");
+    Civi::log()->debug("AmazonBounceApi (BounceHandler) -> {$message}");
   }
 
   private function dump_message_content_to_log() {
@@ -232,7 +232,7 @@ class CRM_Amazonbounceapi_BounceHandler {
       .  json_encode($this->headers_raw) . " | "
       . json_encode($this->message_raw) . " | " . $this->message_id . " | " . $this->topic_arn . " | "
       . $this->amazon_type . " | " . $this->timestamp . " | " . $this->signature . " | " . $this->signature_cert_url;
-    CRM_Core_Error::debug_log_message("AmazonBounceApi (Message_Dump) -> {$message}");
+    Civi::log()->debug("AmazonBounceApi (Message_Dump) -> {$message}");
   }
 
 
